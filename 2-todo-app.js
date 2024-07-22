@@ -72,7 +72,7 @@ function solicitarDescripcionValida(mensaje, obligatoria = false) {
 /**
  *	Devuelve una fecha correctamente validada
  * @param {string} mensaje El mensaje que se desea presentar al usuario
- * @returns Una fecha con el formato dd/mm/aaaa, o 99/99/9999 si no se ingresó ningún valor.
+ * @returns Una fecha o null si no se ingresó ningún valor.
  */
 function solicitarFechaValida(mensaje) {
 	let fecha = prompt(mensaje).trim();
@@ -83,7 +83,13 @@ function solicitarFechaValida(mensaje) {
 		).trim();
 		formatoValido = fecha.match("[0-9]{2}/[0-9]{2}/[0-9]{4}");
 	}
-	return fecha.length === 0 ? "99/99/9999" : fecha;
+	if (fecha.length === 0) {
+		return null;
+	}
+	let stringISO8601 =
+		fecha.split("/").reverse().join("-") + "T00:00:00.000-03:00";
+	console.log(stringISO8601, new Date(stringISO8601));
+	return new Date(stringISO8601);
 }
 
 function listarEstados() {
@@ -174,8 +180,7 @@ function modificarTarea(
 	tareas[indice].descripcion = descripcion ?? tareas[indice].descripcion;
 	tareas[indice].indiceCategoria =
 		indiceCategoria ?? tareas[indice].categoria;
-	tareas[indice].fechaLimite =
-		fechaLimite !== "99/99/9999" ? fechaLimite : tareas[indice].fechaLimite;
+	tareas[indice].fechaLimite = fechaLimite ?? tareas[indice].fechaLimite;
 	console.log("Los cambios solicitados se aplicaron correctamente :D");
 }
 
@@ -197,6 +202,11 @@ function invertirEstado(identificador) {
 
 function imprimirTareas(tareas) {
 	let categoriaFormateada;
+	const FORMATO_FECHA = {
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	};
 	let fechaFormateada;
 	let estado;
 	for (let indice = 0; indice < tareas.length; indice++) {
@@ -204,9 +214,12 @@ function imprimirTareas(tareas) {
 			categorias[tareas[indice].indiceCategoria]
 		}`;
 		fechaFormateada = ` - Fecha limite: ${
-			tareas[indice].fechaLimite !== "99/99/9999"
-				? tareas[indice].fechaLimite
-				: "sin definir"
+			tareas[indice].fechaLimite === null
+				? "sin definir"
+				: tareas[indice].fechaLimite.toLocaleDateString(
+						"es-AR",
+						FORMATO_FECHA
+				  )
 		}`;
 		estado = tareas[indice].completada
 			? " [ FINALIZADA ]"
@@ -280,7 +293,6 @@ function filtrarTareas(filtro) {
  * @param {string} propiedad La propiedad por la cual ordenar el arreglo
  */
 function ordenarTareas(propiedad) {
-	// TODO: Guardar fechas con tipo Date
 	if (tareas.length !== 0 && !(propiedad in tareas[0])) {
 		console.log("Propiedad inválida");
 		return;
@@ -291,7 +303,10 @@ function ordenarTareas(propiedad) {
 		let aux;
 		for (let i = 0; i < indiceFinal; i++) {
 			// Alternar operador para ordenar de mayor a menor
-			if (tareasOrdenadas[i][propiedad] > tareasOrdenadas[i + 1][propiedad]) {
+			if (
+				tareasOrdenadas[i][propiedad] >
+				tareasOrdenadas[i + 1][propiedad]
+			) {
 				aux = tareasOrdenadas[i];
 				tareasOrdenadas[i] = tareasOrdenadas[i + 1];
 				tareasOrdenadas[i + 1] = aux;
@@ -438,7 +453,10 @@ function interactuarConUsuario() {
 					let propiedadOrdenamiento = solicitarPropiedadValida(
 						"Elige la propiedad por la que deseas ordenar tus tareas (opcional): "
 					);
-					let tareasOrdenadas = propiedadOrdenamiento === null ? tareas : ordenarTareas(propiedadOrdenamiento);
+					let tareasOrdenadas =
+						propiedadOrdenamiento === null
+							? tareas
+							: ordenarTareas(propiedadOrdenamiento);
 					console.log(
 						"Estan son las tareas que cargaste hasta el momento: "
 					);
