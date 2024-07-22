@@ -4,12 +4,21 @@
 const prompt = require("prompt-sync")({ sigint: true });
 
 let tareas = [];
+let UID = 0;
 let categorias = ["Personal", "Trabajo"];
 
 // Funciones auxiliares
 
+function obtenerIdentificador() {
+	UID++;
+	return UID;
+}
+
+function identificadoresValidos() {
+	return tareas.map((tarea) => tarea.identificador);
+}
+
 function indiceEsValido(indice, longitudArreglo) {
-	// console.log(indice, typeof indice); // TODO: Remover una vez finalizado
 	let indiceNumerico = parseInt(indice);
 	if (
 		typeof indiceNumerico === "number" &&
@@ -22,7 +31,7 @@ function indiceEsValido(indice, longitudArreglo) {
 	return false;
 }
 
-/** Devuelve un indice correctamente validado */
+/** Devuelve un identificador correctamente validado */
 function solicitarIndiceValido(mensaje, longitudArreglo, obligatorio = true) {
 	let indice = prompt(mensaje).trim();
 	while (obligatorio && !indiceEsValido(indice, longitudArreglo)) {
@@ -33,6 +42,20 @@ function solicitarIndiceValido(mensaje, longitudArreglo, obligatorio = true) {
 		).trim();
 	}
 	return indice.length === 0 ? null : parseInt(indice);
+}
+
+function solicitarIdentificadorValido(mensaje) {
+	let identificador = parseInt(prompt(mensaje).trim());
+	while (!identificadoresValidos().includes(identificador)) {
+		console.log("Estas son las tareas que cargaste hasta el momento: ");
+		imprimirTareas(tareas);
+		identificador = parseInt(
+			prompt(
+				`Por favor, ingresa algún identificador del listado anterior: `
+			).trim()
+		);
+	}
+	return identificador;
 }
 
 /** Devuelve una descripcion correctamente validada */
@@ -90,7 +113,7 @@ function solicitarEstadoValido(mensaje) {
 }
 
 function listarPropiedadesTareas() {
-	console.log("Estos son los campos por los que puedes ordenar:");
+	console.log("Estas son las propiedades por las que puedes ordenar:");
 	console.log("   D. Descripcion");
 	console.log("   F. Fecha Limite");
 }
@@ -108,7 +131,7 @@ function solicitarPropiedadValida(mensaje) {
 		propiedad.length === 0 || propiedadesDisponibles.includes(propiedad);
 	while (!propiedadValida) {
 		propiedad = prompt(
-			"Dato inválido... Por favor, ingresa un valor del listado anterior o déjalo vacío: "
+			"Dato inválido... Por favor, ingresa una letra del listado anterior o déjalo vacío: "
 		)
 			.trim()
 			.toUpperCase();
@@ -128,37 +151,46 @@ function solicitarPropiedadValida(mensaje) {
 
 // Funciones principales
 
-function agregarCategoria(descripcion) {
-	categorias.push(descripcion);
-	console.log("La categoría fue agregada correctamente :D");
-}
-
 function agregarTarea(descripcion, indiceCategoria, fechaLimite) {
 	tareas.push({
+		identificador: obtenerIdentificador(),
 		descripcion: descripcion,
 		indiceCategoria: indiceCategoria,
 		fechaLimite: fechaLimite,
 		completada: false,
 	});
 	console.log("La tarea fue agregada correctamente :D");
-	// console.log(tareas[tareas.length - 1]); // TODO: Remover una vez finalizado
 }
 
-function modificarTarea(indice, descripcion, indiceCategoria, fechaLimite) {
+function modificarTarea(
+	identificador,
+	descripcion,
+	indiceCategoria,
+	fechaLimite
+) {
+	let indice = tareas.findIndex(
+		(tarea) => tarea.identificador === identificador
+	);
 	tareas[indice].descripcion = descripcion ?? tareas[indice].descripcion;
 	tareas[indice].indiceCategoria =
 		indiceCategoria ?? tareas[indice].categoria;
-	tareas[indice].fechaLimite = fechaLimite !== "99/99/9999" ? fechaLimite : tareas[indice].fechaLimite;
+	tareas[indice].fechaLimite =
+		fechaLimite !== "99/99/9999" ? fechaLimite : tareas[indice].fechaLimite;
 	console.log("Los cambios solicitados se aplicaron correctamente :D");
-	// console.log(tareas[indice]); // TODO: Remover una vez finalizado
 }
 
-function eliminarTarea(indice) {
+function eliminarTarea(identificador) {
+	let indice = tareas.findIndex(
+		(tarea) => tarea.identificador === identificador
+	);
 	tareas.splice(indice, 1);
 	console.log("La tarea fue eliminada correctamente :D");
 }
 
-function invertirEstado(indice) {
+function invertirEstado(identificador) {
+	let indice = tareas.findIndex(
+		(tarea) => tarea.identificador === identificador
+	);
 	tareas[indice].completada = !tareas[indice].completada;
 	console.log("La tarea fue actualizada correctamente :D");
 }
@@ -179,9 +211,8 @@ function imprimirTareas(tareas) {
 		estado = tareas[indice].completada
 			? " [ FINALIZADA ]"
 			: " [ PENDIENTE ]";
-		// TODO: Imprimir identificador una vez disponible
 		console.log(
-			indice +
+			tareas[indice].identificador +
 				". " +
 				tareas[indice].descripcion +
 				categoriaFormateada +
@@ -189,6 +220,11 @@ function imprimirTareas(tareas) {
 				estado
 		);
 	}
+}
+
+function agregarCategoria(descripcion) {
+	categorias.push(descripcion);
+	console.log("La categoría fue agregada correctamente :D");
 }
 
 function listarCategorias() {
@@ -220,7 +256,6 @@ function armarFiltro() {
 					completada: completada,
 			  }
 			: null;
-	// console.log(indiceCategoria, estado, completada, "Filtro:", filtro); // TODO: Eliminar una vez probado
 	return filtro;
 }
 
@@ -245,47 +280,45 @@ function filtrarTareas(filtro) {
  * @param {string} propiedad La propiedad por la cual ordenar el arreglo
  */
 function ordenarTareas(propiedad) {
+	// TODO: Guardar fechas con tipo Date
 	if (tareas.length !== 0 && !(propiedad in tareas[0])) {
-		console.log("Campo inválido");
+		console.log("Propiedad inválida");
 		return;
 	}
-	/* 	TODO: METODO CON EFECTOS SECUNDARIOS: Se pierde orden original
-	Ordenar una copia del arreglo y asignar un identificador unico a 
-	cada tarea (no usar indice). Requiere cambios en varios métodos.*/
-	// let tareasOrdenadas = tareas.slice();
-	let indiceFinal = tareas.length - 1;
+	let tareasOrdenadas = tareas.slice();
+	let indiceFinal = tareasOrdenadas.length - 1;
 	while (indiceFinal > 0) {
 		let aux;
 		for (let i = 0; i < indiceFinal; i++) {
 			// Alternar operador para ordenar de mayor a menor
-			if (tareas[i][propiedad] > tareas[i + 1][propiedad]) {
-				aux = tareas[i];
-				tareas[i] = tareas[i + 1];
-				tareas[i + 1] = aux;
+			if (tareasOrdenadas[i][propiedad] > tareasOrdenadas[i + 1][propiedad]) {
+				aux = tareasOrdenadas[i];
+				tareasOrdenadas[i] = tareasOrdenadas[i + 1];
+				tareasOrdenadas[i + 1] = aux;
 			}
 		}
 		// Optimización para no validar contra últimos valores
 		indiceFinal -= 1;
 	}
+	return tareasOrdenadas;
 }
 
 /**
- * Busca la tarea cuyo nombre coincide con lo definido, usando busqueda
- * binaria.
- * @param {string} nombre El nombre de la tarea que se desea encontrar
- * @returns {number} El indice donde se encuentra la tarea.
+ * Busca una la tarea en base a la propiedad definida, usando busqueda binaria.
+ * @param {string} nombrePropiedad La propiedad por la cual se desea buscar
+ * @param {string} valor El valor que se desea buscar
+ * @returns {number} El identificador de la tarea o -1 si no se encontró
  */
-function buscarTarea(nombrePropiedad, valor) {
-	// TODO: Convertir a funcion pura
-	ordenarTareas(nombrePropiedad);
+function buscarIdentificadorTarea(nombrePropiedad, valor) {
+	let tareasOrdenadas = ordenarTareas(nombrePropiedad);
 	let indiceInicial = 0;
-	let indiceFinal = tareas.length - 1;
+	let indiceFinal = tareasOrdenadas.length - 1;
 	while (indiceInicial <= indiceFinal) {
 		let indiceMedio = Math.floor((indiceInicial + indiceFinal) / 2);
-		if (tareas[indiceMedio][nombrePropiedad] === valor) {
-			return indiceMedio;
+		if (tareasOrdenadas[indiceMedio][nombrePropiedad] === valor) {
+			return tareasOrdenadas[indiceMedio].identificador;
 		}
-		if (tareas[indiceMedio][nombrePropiedad] > valor) {
+		if (tareasOrdenadas[indiceMedio][nombrePropiedad] > valor) {
 			indiceFinal = indiceMedio - 1;
 		} else {
 			indiceInicial = indiceMedio + 1;
@@ -299,8 +332,7 @@ function listarOperaciones() {
 
 	console.log("   V. Visualizar tareas");
 	console.log("   F. Filtrar tareas");
-	console.log("   R. Reordenar tareas"); // TODO: Integrar con visualizacion
-	console.log("   D. Buscar tarea por descripción\n");
+	console.log("   D. Buscar tarea por Descripción\n");
 
 	console.log("   C. Cambiar estado de una tarea");
 	console.log("   N. Crear nueva tarea");
@@ -312,13 +344,13 @@ function listarOperaciones() {
 
 	console.log("   O. Ver operaciones disponibles");
 
-	console.log("   Q. Cerrar aplicación\n");
+	console.log("   Q. Cerrar aplicación");
 }
 
 function interactuarConUsuario() {
 	console.log("Bienvenido/a a tu gestor de tareas.");
 	let opcionSeleccionada;
-	let indice;
+	let identificador;
 	let descripcion;
 	let indiceCategoria;
 	let fechaLimite;
@@ -327,7 +359,7 @@ function interactuarConUsuario() {
 	listarOperaciones();
 	do {
 		opcionSeleccionada = prompt(
-			"Por favor, ingresa la letra de la OPERACION que deseas: "
+			"\nPor favor, ingresa la letra de la OPERACION que deseas: "
 		).toUpperCase();
 
 		switch (opcionSeleccionada) {
@@ -352,10 +384,8 @@ function interactuarConUsuario() {
 				if (tareas.length === 0) {
 					console.log(mensajeSinTareas);
 				} else {
-					indice = solicitarIndiceValido(
-						"Ingresa el INDICE de la tarea que deseas modificar: ",
-						tareas.length,
-						true
+					identificador = solicitarIdentificadorValido(
+						"Ingresa el IDENTIFICADOR de la tarea que deseas modificar: "
 					);
 					descripcion = solicitarDescripcionValida(
 						"Ingresa una nueva DESCRIPCION para la tarea (déjala vacía si no deseas modificarla): ",
@@ -371,7 +401,7 @@ function interactuarConUsuario() {
 						"Ingresa una nueva FECHA LIMITE para la tarea (déjala vacía si no deseas modificarla): "
 					);
 					modificarTarea(
-						indice,
+						identificador,
 						descripcion,
 						indiceCategoria,
 						fechaLimite
@@ -383,12 +413,10 @@ function interactuarConUsuario() {
 				if (tareas.length === 0) {
 					console.log(mensajeSinTareas);
 				} else {
-					indice = solicitarIndiceValido(
-						"Ingresa el INDICE de la tarea que deseas actualizar: ",
-						tareas.length,
-						true
+					identificador = solicitarIdentificadorValido(
+						"Ingresa el IDENTIFICADOR de la tarea que deseas actualizar: "
 					);
-					invertirEstado(indice);
+					invertirEstado(identificador);
 				}
 				break;
 
@@ -396,12 +424,10 @@ function interactuarConUsuario() {
 				if (tareas.length === 0) {
 					console.log(mensajeSinTareas);
 				} else {
-					indice = solicitarIndiceValido(
-						"Ingresa el INDICE de la tarea que deseas eliminar: ",
-						tareas.length,
-						true
+					identificador = solicitarIdentificadorValido(
+						"Ingresa el IDENTIFICADOR de la tarea que deseas eliminar: "
 					);
-					eliminarTarea(indice);
+					eliminarTarea(identificador);
 				}
 				break;
 
@@ -409,31 +435,14 @@ function interactuarConUsuario() {
 				if (tareas.length === 0) {
 					console.log(mensajeSinTareas);
 				} else {
+					let propiedadOrdenamiento = solicitarPropiedadValida(
+						"Elige la propiedad por la que deseas ordenar tus tareas (opcional): "
+					);
+					let tareasOrdenadas = propiedadOrdenamiento === null ? tareas : ordenarTareas(propiedadOrdenamiento);
 					console.log(
 						"Estan son las tareas que cargaste hasta el momento: "
 					);
-					imprimirTareas(tareas);
-				}
-				break;
-
-			case "R":
-				if (tareas.length === 0) {
-					console.log(mensajeSinTareas);
-				} else {
-					let propiedadOrdenamiento = solicitarPropiedadValida(
-						"Elige el dato por el que deseas ordenar las tareas: "
-					);
-					if (propiedadOrdenamiento == null) {
-						console.log(
-							"Estan son las tareas que cargaste hasta el momento: "
-						);
-					} else {
-						ordenarTareas(propiedadOrdenamiento);
-						console.log(
-							`Aqui tienes las tareas ordenadas por ${propiedadOrdenamiento}: `
-						);
-					}
-					imprimirTareas(tareas);
+					imprimirTareas(tareasOrdenadas);
 				}
 				break;
 
@@ -449,11 +458,14 @@ function interactuarConUsuario() {
 							"Debes ingresar al menos un caracter para poder avanzar: "
 						);
 					}
-					let indice = buscarTarea("descripcion", descripcion);
+					identificador = buscarIdentificadorTarea(
+						"descripcion",
+						descripcion
+					);
 					console.log(
-						indice === -1
+						identificador === -1
 							? "No existe ninguna tarea con la descripción proporcionada :/"
-							: `La tarea se encuentra en la posicion ${indice}`
+							: `La tarea tiene el identificador ${identificador}`
 					);
 				}
 				break;
